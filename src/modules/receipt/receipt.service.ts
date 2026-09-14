@@ -4,11 +4,9 @@ import { Repository } from 'typeorm';
 import { House } from '../house/entity/house.entity.js';
 import { User } from '../user/entity/user.entity.js';
 import { Receipt } from './entity/receipt.entity.js';
-import { IReceiptResponse } from './interfaces/receipt-response.interface.js';
 import { GeminiService } from '../../shared/utils/gemini/gemini.service.js';
 import { FileUploadService } from '../file-upload/file-upload.service.js';
 import { PROMPT } from '../../shared/const/gemini.const.js';
-import { IServiceResponse } from '../../shared/interfaces/service-response.interface.js';
 import { OcrService } from '../../shared/utils/ocr/ocr.service.js';
 
 @Injectable()

@@ -1,0 +1,1 @@
+export const LENGTH_INVITE_CODE = 8;

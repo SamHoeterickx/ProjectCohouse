@@ -3,7 +3,7 @@ services:
     image: postgres:16
     restart: unless-stopped
     env_file:
-      - ./env/.env
+      - ./env/.env.development
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}

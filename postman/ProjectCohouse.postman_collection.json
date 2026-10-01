@@ -1,0 +1,1372 @@
+{
+  "info": {
+    "name": "ProjectCohouse API",
+    "description": "NestJS backend for ProjectCohouse (Tricount replacement).\n\nFlow: Register/Login (tokens are stored automatically) → Create house (houseUuid + inviteCode stored) → Me (userUuid stored) → expenses, balances, settlements.\n\nAll amounts are integers in cents. Dates are YYYY-MM-DD.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "refreshToken",
+      "value": ""
+    },
+    {
+      "key": "userUuid",
+      "value": ""
+    },
+    {
+      "key": "memberUuid",
+      "value": ""
+    },
+    {
+      "key": "houseUuid",
+      "value": ""
+    },
+    {
+      "key": "inviteCode",
+      "value": ""
+    },
+    {
+      "key": "expenseUuid",
+      "value": ""
+    },
+    {
+      "key": "settlementUuid",
+      "value": ""
+    },
+    {
+      "key": "recurringUuid",
+      "value": ""
+    },
+    {
+      "key": "receiptUrl",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Anna\",\n  \"email\": \"anna@example.com\",\n  \"password\": \"Passw0rd!\",\n  \"repeatPassword\": \"Passw0rd!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const d = json.data && json.data.data !== undefined ? json.data.data : json.data;",
+                  "if (d && d.accessToken !== undefined) pm.collectionVariables.set('accessToken', d.accessToken);",
+                  "if (d && d.refreshToken !== undefined) pm.collectionVariables.set('refreshToken', d.refreshToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"anna@example.com\",\n  \"password\": \"Passw0rd!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const d = json.data && json.data.data !== undefined ? json.data.data : json.data;",
+                  "if (d && d.accessToken !== undefined) pm.collectionVariables.set('accessToken', d.accessToken);",
+                  "if (d && d.refreshToken !== undefined) pm.collectionVariables.set('refreshToken', d.refreshToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "refresh"
+              ]
+            },
+            "description": "Rotates the refresh token; the old one stops working.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const d = json.data && json.data.data !== undefined ? json.data.data : json.data;",
+                  "if (d && d.accessToken !== undefined) pm.collectionVariables.set('accessToken', d.accessToken);",
+                  "if (d && d.refreshToken !== undefined) pm.collectionVariables.set('refreshToken', d.refreshToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Invalidates the refresh token."
+          }
+        }
+      ]
+    },
+    {
+      "name": "User",
+      "item": [
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/user/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "me"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const d = json.data && json.data.data !== undefined ? json.data.data : json.data;",
+                  "if (d && d.uuid !== undefined) pm.collectionVariables.set('userUuid', d.uuid);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update me",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/user/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "me"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Anna V.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Change password",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/user/me/password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "me",
+                "password"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"Passw0rd!\",\n  \"newPassword\": \"N3wPassw0rd!\",\n  \"repeatPassword\": \"N3wPassw0rd!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "House",
+      "item": [
+        {
+          "name": "Create house",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/house/create",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "house",
+                "create"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ons kot\",\n  \"address\": \"Voorbeeldstraat 1, 9000 Gent\",\n  \"currency\": \"EUR\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const d = json.data && json.data.data !== undefined ? json.data.data : json.data;",
+                  "if (d && d.uuid !== undefined) pm.collectionVariables.set('houseUuid', d.uuid);",
+                  "if (d && d.inviteCode !== undefined) pm.collectionVariables.set('inviteCode', d.inviteCode);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "My houses",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/house/myHouses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "house",
+                "myHouses"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get house",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/house/{{houseUuid}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "house",
+                "{{houseUuid}}"
+              ]
+            },
+            "description": "Includes members. inviteCode only visible for admins."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const d = json.data && json.data.data !== undefined ? json.data.data : json.data;",
+                  "if (d && d.inviteCode !== undefined) pm.collectionVariables.set('inviteCode', d.inviteCode);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Join house",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/house/join/{{inviteCode}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "house",
+                "join",
+                "{{inviteCode}}"
+              ]
+            },
+            "description": "Run this logged in as another user."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const d = json.data && json.data.data !== undefined ? json.data.data : json.data;",
+                  "if (d && d.uuid !== undefined) pm.collectionVariables.set('houseUuid', d.uuid);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update house",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/house/{{houseUuid}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "house",
+                "{{houseUuid}}"
+              ]
+            },
+            "description": "Admin only. Currency only while there are no expenses.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ons nieuwe kot\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Regenerate invite code",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/house/regenerate/{{houseUuid}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "house",
+                "regenerate",
+                "{{houseUuid}}"
+              ]
+            },
+            "description": "Admin only."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const d = json.data && json.data.data !== undefined ? json.data.data : json.data;",
+                  "if (d && d.inviteCode !== undefined) pm.collectionVariables.set('inviteCode', d.inviteCode);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Change member role",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/house/{{houseUuid}}/members/{{memberUuid}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "house",
+                "{{houseUuid}}",
+                "members",
+                "{{memberUuid}}"
+              ]
+            },
+            "description": "Admin only.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"admin\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Remove member",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/house/{{houseUuid}}/members/{{memberUuid}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "house",
+                "{{houseUuid}}",
+                "members",
+                "{{memberUuid}}"
+              ]
+            },
+            "description": "Admin only. Member balance must be 0."
+          }
+        },
+        {
+          "name": "Leave house",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/house/{{houseUuid}}/leave",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "house",
+                "{{houseUuid}}",
+                "leave"
+              ]
+            },
+            "description": "Balance must be 0. Last member leaving deletes the house."
+          }
+        },
+        {
+          "name": "Delete house",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/house/{{houseUuid}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "house",
+                "{{houseUuid}}"
+              ]
+            },
+            "description": "Admin only. All balances must be 0."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Receipts",
+      "item": [
+        {
+          "name": "Upload file",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/file-upload/upload",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "file-upload",
+                "upload"
+              ]
+            },
+            "description": "Select a jpg/png/webp/heic/pdf in the body tab.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const d = json.data && json.data.data !== undefined ? json.data.data : json.data;",
+                  "if (d && d.path !== undefined) pm.collectionVariables.set('receiptUrl', d.path);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Extract uploaded receipt",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/house/{{houseUuid}}/receipts/extract",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "house",
+                "{{houseUuid}}",
+                "receipts",
+                "extract"
+              ]
+            },
+            "description": "Returns a draft (store, date, amount_in_cents, items). Nothing is stored.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"path\": \"{{receiptUrl}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Scan receipt (upload + extract)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/house/{{houseUuid}}/receipts/scan",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "house",
+                "{{houseUuid}}",
+                "receipts",
+                "scan"
+              ]
+            },
+            "description": "Select a file in the body tab.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const d = json.data && json.data.data !== undefined ? json.data.data : json.data;",
+                  "if (d && d.receipt_url !== undefined) pm.collectionVariables.set('receiptUrl', d.receipt_url);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Expenses",
+      "item": [
+        {
+          "name": "Create expense - equal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/house/{{houseUuid}}/expenses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "house",
+                "{{houseUuid}}",
+                "expenses"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Huur oktober\",\n  \"category\": \"rent\",\n  \"amount_in_cents\": 120000,\n  \"date\": \"2026-10-01\",\n  \"paid_by\": \"{{userUuid}}\",\n  \"split_type\": \"equal\",\n  \"participants\": [\n    {\n      \"user_uuid\": \"{{userUuid}}\"\n    },\n    {\n      \"user_uuid\": \"{{memberUuid}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const d = json.data && json.data.data !== undefined ? json.data.data : json.data;",
+                  "if (d && d.uuid !== undefined) pm.collectionVariables.set('expenseUuid', d.uuid);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create expense - shares",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/house/{{houseUuid}}/expenses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "house",
+                "{{houseUuid}}",
+                "expenses"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Energie\",\n  \"category\": \"utilities\",\n  \"amount_in_cents\": 9000,\n  \"date\": \"2026-10-01\",\n  \"paid_by\": \"{{userUuid}}\",\n  \"split_type\": \"shares\",\n  \"participants\": [\n    {\n      \"user_uuid\": \"{{userUuid}}\",\n      \"shares\": 2\n    },\n    {\n      \"user_uuid\": \"{{memberUuid}}\",\n      \"shares\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const d = json.data && json.data.data !== undefined ? json.data.data : json.data;",
+                  "if (d && d.uuid !== undefined) pm.collectionVariables.set('expenseUuid', d.uuid);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create expense - exact",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/house/{{houseUuid}}/expenses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "house",
+                "{{houseUuid}}",
+                "expenses"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Restaurant\",\n  \"category\": \"restaurant\",\n  \"amount_in_cents\": 5000,\n  \"date\": \"2026-10-01\",\n  \"paid_by\": \"{{userUuid}}\",\n  \"split_type\": \"exact\",\n  \"participants\": [\n    {\n      \"user_uuid\": \"{{userUuid}}\",\n      \"amount_in_cents\": 2000\n    },\n    {\n      \"user_uuid\": \"{{memberUuid}}\",\n      \"amount_in_cents\": 3000\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const d = json.data && json.data.data !== undefined ? json.data.data : json.data;",
+                  "if (d && d.uuid !== undefined) pm.collectionVariables.set('expenseUuid', d.uuid);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create expense - items (receipt)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/house/{{houseUuid}}/expenses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "house",
+                "{{houseUuid}}",
+                "expenses"
+              ]
+            },
+            "description": "receipt_url is optional; remove it if you did not upload a receipt.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Boodschappen\",\n  \"store\": \"Colruyt\",\n  \"category\": \"groceries\",\n  \"amount_in_cents\": 900,\n  \"date\": \"2026-10-01\",\n  \"paid_by\": \"{{userUuid}}\",\n  \"split_type\": \"items\",\n  \"receipt_url\": \"{{receiptUrl}}\",\n  \"items\": [\n    {\n      \"name\": \"Bier\",\n      \"amount\": 1,\n      \"price_per_unit\": 600,\n      \"discount_in_cents\": 0,\n      \"price\": 600,\n      \"assigned_to\": [\n        \"{{memberUuid}}\"\n      ]\n    },\n    {\n      \"name\": \"Brood\",\n      \"amount\": 1,\n      \"price_per_unit\": 400,\n      \"discount_in_cents\": 0,\n      \"price\": 400,\n      \"assigned_to\": [\n        \"{{userUuid}}\",\n        \"{{memberUuid}}\"\n      ]\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const d = json.data && json.data.data !== undefined ? json.data.data : json.data;",
+                  "if (d && d.uuid !== undefined) pm.collectionVariables.set('expenseUuid', d.uuid);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create expense - foreign currency",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/house/{{houseUuid}}/expenses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "house",
+                "{{houseUuid}}",
+                "expenses"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Weekend Londen\",\n  \"category\": \"transport\",\n  \"amount_in_cents\": 10000,\n  \"currency\": \"GBP\",\n  \"exchange_rate\": 1.17,\n  \"date\": \"2026-10-01\",\n  \"paid_by\": \"{{userUuid}}\",\n  \"split_type\": \"equal\",\n  \"participants\": [\n    {\n      \"user_uuid\": \"{{userUuid}}\"\n    },\n    {\n      \"user_uuid\": \"{{memberUuid}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const d = json.data && json.data.data !== undefined ? json.data.data : json.data;",
+                  "if (d && d.uuid !== undefined) pm.collectionVariables.set('expenseUuid', d.uuid);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List expenses",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/house/{{houseUuid}}/expenses?page=1&limit=25",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "house",
+                "{{houseUuid}}",
+                "expenses"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "25"
+                },
+                {
+                  "key": "category",
+                  "value": "groceries",
+                  "disabled": true
+                },
+                {
+                  "key": "paid_by",
+                  "value": "{{userUuid}}",
+                  "disabled": true
+                },
+                {
+                  "key": "participant",
+                  "value": "{{memberUuid}}",
+                  "disabled": true
+                },
+                {
+                  "key": "from",
+                  "value": "2026-09-01",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "2026-10-31",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "colruyt",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Export expenses (CSV)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/house/{{houseUuid}}/expenses/export",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "house",
+                "{{houseUuid}}",
+                "expenses",
+                "export"
+              ]
+            },
+            "description": "Accepts the same filters as List expenses."
+          }
+        },
+        {
+          "name": "Get expense",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/house/{{houseUuid}}/expenses/{{expenseUuid}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "house",
+                "{{houseUuid}}",
+                "expenses",
+                "{{expenseUuid}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update expense",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/house/{{houseUuid}}/expenses/{{expenseUuid}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "house",
+                "{{houseUuid}}",
+                "expenses",
+                "{{expenseUuid}}"
+              ]
+            },
+            "description": "Full replace; splits are recalculated.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Huur oktober (aangepast)\",\n  \"category\": \"rent\",\n  \"amount_in_cents\": 125000,\n  \"date\": \"2026-10-01\",\n  \"paid_by\": \"{{userUuid}}\",\n  \"split_type\": \"equal\",\n  \"participants\": [\n    {\n      \"user_uuid\": \"{{userUuid}}\"\n    },\n    {\n      \"user_uuid\": \"{{memberUuid}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete expense",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/house/{{houseUuid}}/expenses/{{expenseUuid}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "house",
+                "{{houseUuid}}",
+                "expenses",
+                "{{expenseUuid}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Balances & settlements",
+      "item": [
+        {
+          "name": "Balances",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/house/{{houseUuid}}/balances",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "house",
+                "{{houseUuid}}",
+                "balances"
+              ]
+            },
+            "description": "Net balance per user (positive = receives) + suggested transfers."
+          }
+        },
+        {
+          "name": "List settlements",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/house/{{houseUuid}}/settlements?page=1&limit=25",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "house",
+                "{{houseUuid}}",
+                "settlements"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create settlement",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/house/{{houseUuid}}/settlements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "house",
+                "{{houseUuid}}",
+                "settlements"
+              ]
+            },
+            "description": "from_user paid to_user back.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"from_user\": \"{{memberUuid}}\",\n  \"to_user\": \"{{userUuid}}\",\n  \"amount_in_cents\": 1500,\n  \"date\": \"2026-10-01\",\n  \"notes\": \"Payconiq\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const d = json.data && json.data.data !== undefined ? json.data.data : json.data;",
+                  "if (d && d.uuid !== undefined) pm.collectionVariables.set('settlementUuid', d.uuid);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete settlement",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/house/{{houseUuid}}/settlements/{{settlementUuid}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "house",
+                "{{houseUuid}}",
+                "settlements",
+                "{{settlementUuid}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recurring expenses",
+      "item": [
+        {
+          "name": "List recurring",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/house/{{houseUuid}}/recurring-expenses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "house",
+                "{{houseUuid}}",
+                "recurring-expenses"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create recurring",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/house/{{houseUuid}}/recurring-expenses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "house",
+                "{{houseUuid}}",
+                "recurring-expenses"
+              ]
+            },
+            "description": "Past occurrences since start_date are generated immediately.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Netflix\",\n  \"category\": \"subscriptions\",\n  \"amount_in_cents\": 1799,\n  \"paid_by\": \"{{userUuid}}\",\n  \"split_type\": \"equal\",\n  \"participants\": [\n    {\n      \"user_uuid\": \"{{userUuid}}\"\n    },\n    {\n      \"user_uuid\": \"{{memberUuid}}\"\n    }\n  ],\n  \"interval\": \"monthly\",\n  \"start_date\": \"2026-10-01\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const d = json.data && json.data.data !== undefined ? json.data.data : json.data;",
+                  "if (d && d.uuid !== undefined) pm.collectionVariables.set('recurringUuid', d.uuid);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update recurring",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/house/{{houseUuid}}/recurring-expenses/{{recurringUuid}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "house",
+                "{{houseUuid}}",
+                "recurring-expenses",
+                "{{recurringUuid}}"
+              ]
+            },
+            "description": "Applies to future occurrences only.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Netflix Premium\",\n  \"category\": \"subscriptions\",\n  \"amount_in_cents\": 2199,\n  \"paid_by\": \"{{userUuid}}\",\n  \"split_type\": \"equal\",\n  \"participants\": [\n    {\n      \"user_uuid\": \"{{userUuid}}\"\n    },\n    {\n      \"user_uuid\": \"{{memberUuid}}\"\n    }\n  ],\n  \"interval\": \"monthly\",\n  \"start_date\": \"2026-10-01\",\n  \"active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete recurring",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/house/{{houseUuid}}/recurring-expenses/{{recurringUuid}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "house",
+                "{{houseUuid}}",
+                "recurring-expenses",
+                "{{recurringUuid}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Activity",
+      "item": [
+        {
+          "name": "Activity log",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/house/{{houseUuid}}/activity?page=1&limit=25",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "house",
+                "{{houseUuid}}",
+                "activity"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

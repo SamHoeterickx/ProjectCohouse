@@ -74,9 +74,42 @@ export class AuthService {
         };
     }
 
+    /** Rotates the refresh token: the old one stops working once it has been used. */
+    public async refresh(refreshToken: string): Promise<IServiceResponse> {
+        let payload: { sub: string; email: string };
+        try {
+            payload = await this.tokenService.verifyRefreshToken(refreshToken);
+        } catch {
+            throw new UnauthorizedException('Invalid refresh token');
+        }
+
+        const user = await this.userService.findUserWithRefreshToken(payload.sub);
+        if (!user?.hashedRefreshToken || !(await this.tokenService.compareToken(refreshToken, user.hashedRefreshToken))) {
+            throw new UnauthorizedException('Invalid refresh token');
+        }
+
+        return {
+            statusCode: 200,
+            message: 'Token refreshed.',
+            data: await this.issueTokens(user.uuid, user.email),
+        };
+    }
+
+    public async logout(userUuid: string): Promise<IServiceResponse> {
+        await this.userService.setRefreshToken(userUuid, null);
+
+        return {
+            statusCode: 200,
+            message: 'Logout successful.',
+        };
+    }
+
     private async issueTokens(uuid: string, email: string) {
         const accessToken = await this.tokenService.generateAccessToken(uuid, email);
         const refreshToken = await this.tokenService.generateRefreshToken(uuid, email);
+
+        await this.userService.setRefreshToken(uuid, await this.tokenService.hashToken(refreshToken));
+
         return { accessToken, refreshToken };
     }
 

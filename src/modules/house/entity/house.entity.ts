@@ -1,5 +1,6 @@
 import { Column, CreateDateColumn, Entity, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 import { HouseUser } from "../../user/entity/house_user.entity.js";
+import { DEFAULT_CURRENCY } from "../../../shared/const/house.const.js";
 
 @Entity()
 export class House {
@@ -8,10 +9,13 @@ export class House {
     uuid: string;
 
     @Column()
-    adress: string;
+    address: string;
 
     @Column()
     name: string;
+
+    @Column({ type: 'varchar', length: 3, default: DEFAULT_CURRENCY })
+    currency: string;
 
     @OneToMany(
         () => HouseUser, 

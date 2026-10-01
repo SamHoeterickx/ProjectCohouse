@@ -1,5 +1,5 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { access, mkdir, unlink, writeFile } from 'fs/promises';
+import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { del, put } from '@vercel/blob';
 
 @Injectable()
 export class FileUploadService {
@@ -8,36 +8,29 @@ export class FileUploadService {
 
     public async saveFile(file: Express.Multer.File) {
         if (!file) {
-            throw new Error('No file provided');
+            throw new BadRequestException('No file provided');
         }
 
-        console.log(file);
+        if (!file.buffer) {
+            throw new BadRequestException('Uploaded file has no buffer');
+        }
 
-        // const uploadDir = './uploads';
-        // await mkdir(uploadDir, { recursive: true });
+        const suffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const originalName = file.originalname.replace(/\s+/g, '_');
+        const fileName = `${suffix}-${originalName}`;
 
-        // if (file.buffer) {
-        //     const uploadPath = `${uploadDir}/${file.originalname}`;
-        //     await writeFile(uploadPath, file.buffer);
+        const blob = await put(fileName, file.buffer, {
+            access: 'public',
+            addRandomSuffix: true,
+            contentType: file.mimetype,
+        });
 
-        //     return {
-        //         message: 'File uploaded successfully',
-        //         path: uploadPath
-        //     };
-        // }
-
-        // const diskPath = (file as any).path || ((file as any).destination && (file as any).filename ? `${(file as any).destination}/${(file as any).filename}` : undefined);
-
-        // if (diskPath) {
-        //     return {
-        //         message: 'File uploaded successfully',
-        //         data: {
-        //             path: diskPath
-        //         }
-        //     };
-
-        // }
-        // throw new Error('Uploaded file has no buffer or path');
+        return {
+            message: 'File uploaded successfully',
+            data: {
+                path: blob.url,
+            }
+        };
     }
 
     public async removeFile(path: string) {
@@ -46,18 +39,12 @@ export class FileUploadService {
         }
 
         try {
-            await access(path);
+            await del(path);
         } catch (error) {
-            if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-                return;
-            }
-
             console.error(error);
             throw new InternalServerErrorException(
                 `Failed to remove file: ${error instanceof Error ? error.message : String(error)}`
             );
         }
-
-        await unlink(path);
     }
 }

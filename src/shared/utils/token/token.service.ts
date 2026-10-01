@@ -1,7 +1,7 @@
 import { Injectable, InternalServerErrorException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
-import * as bcrypt from 'bcrypt';
+import { createHash, randomUUID, timingSafeEqual } from 'crypto';
 
 @Injectable()
 export class TokenService {
@@ -37,7 +37,7 @@ export class TokenService {
 
     public async generateRefreshToken(uuid: string, email: string) {
         return this.jwtService.signAsync(
-            { sub: uuid, email },
+            { sub: uuid, email, jti: randomUUID() },
             { secret: this.JWT_REFRESH_SECRET, expiresIn: '7d' },
         );
     }
@@ -48,11 +48,16 @@ export class TokenService {
         });
     }
 
+    // SHA-256 instead of bcrypt: bcrypt only looks at the first 72 bytes, which for a JWT is
+    // the shared header + user id, so every refresh token of a user would match.
     public async hashToken(token: string) {
-        return bcrypt.hash(token, 10);
+        return createHash('sha256').update(token).digest('hex');
     }
 
     public async compareToken(token: string, hashed: string) {
-        return bcrypt.compare(token, hashed);
+        const candidate = Buffer.from(await this.hashToken(token), 'hex');
+        const stored = Buffer.from(hashed, 'hex');
+
+        return candidate.length === stored.length && timingSafeEqual(candidate, stored);
     }
 }

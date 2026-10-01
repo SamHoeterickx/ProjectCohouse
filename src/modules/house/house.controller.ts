@@ -1,10 +1,12 @@
-import { Body, ConflictException, Controller, Get, InternalServerErrorException, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, ConflictException, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, UseGuards } from '@nestjs/common';
 
 // ___SERVICE___
 import { HouseService } from './house.service.js';
 
 // ___DTO___
 import { CreateHouseDto } from './dto/create-house.dto.js';
+import { UpdateHouseDto } from './dto/update-house.dto.js';
+import { UpdateMemberRoleDto } from './dto/update-member-role.dto.js';
 
 // ___ENTITY___
 import { User } from '../user/entity/user.entity.js';
@@ -35,13 +37,9 @@ export class HouseController {
 
     @Get('/:houseUuid')
     public async getHouse(
-        @Param('houseUuid') houseUuid: string,
+        @Param('houseUuid', ParseUUIDPipe) houseUuid: string,
         @CurrentUser() user: User
     ){
-        if(houseUuid.length === 0){
-            throw new InternalServerErrorException('')
-        }
-
         return await this.houseService.getHouse(houseUuid, user.uuid);
     }
 
@@ -67,9 +65,54 @@ export class HouseController {
         return await this.houseService.create(houseDto, user.uuid)
     }
 
+    @Patch('/:houseUuid')
+    public async update(
+        @Param('houseUuid', ParseUUIDPipe) houseUuid: string,
+        @Body() houseDto: UpdateHouseDto,
+        @CurrentUser() user: User
+    ){
+        return await this.houseService.update(houseUuid, houseDto, user.uuid);
+    }
+
+    @Delete('/:houseUuid')
+    public async remove(
+        @Param('houseUuid', ParseUUIDPipe) houseUuid: string,
+        @CurrentUser() user: User
+    ){
+        return await this.houseService.remove(houseUuid, user.uuid);
+    }
+
+    @Post('/:houseUuid/leave')
+    @HttpCode(200)
+    public async leave(
+        @Param('houseUuid', ParseUUIDPipe) houseUuid: string,
+        @CurrentUser() user: User
+    ){
+        return await this.houseService.leave(houseUuid, user.uuid);
+    }
+
+    @Delete('/:houseUuid/members/:memberUuid')
+    public async removeMember(
+        @Param('houseUuid', ParseUUIDPipe) houseUuid: string,
+        @Param('memberUuid', ParseUUIDPipe) memberUuid: string,
+        @CurrentUser() user: User
+    ){
+        return await this.houseService.removeMember(houseUuid, memberUuid, user.uuid);
+    }
+
+    @Patch('/:houseUuid/members/:memberUuid')
+    public async changeRole(
+        @Param('houseUuid', ParseUUIDPipe) houseUuid: string,
+        @Param('memberUuid', ParseUUIDPipe) memberUuid: string,
+        @Body() dto: UpdateMemberRoleDto,
+        @CurrentUser() user: User
+    ){
+        return await this.houseService.changeRole(houseUuid, memberUuid, dto.role, user.uuid);
+    }
+
     @Post('/regenerate/:uuid')
     public async regenerate(
-        @Param('uuid') uuid: string,
+        @Param('uuid', ParseUUIDPipe) uuid: string,
         @CurrentUser() user: User
     ){
         return await this.houseService.regenerate(uuid, user.uuid)

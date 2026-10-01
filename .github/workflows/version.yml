@@ -5,6 +5,8 @@ name: Version
 on:
   push:
     branches: [main]
+  # Also allows a manual run from the Actions tab.
+  workflow_dispatch:
 
 concurrency:
   group: version-${{ github.ref }}

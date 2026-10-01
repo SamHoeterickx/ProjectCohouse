@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+// Imported explicitly so Vercel's bundler includes it: TypeORM only loads 'pg' through a dynamic require.
+import pg from 'pg';
 
 // ___MODULE___
 import { AuthModule } from '../auth/auth.module.js';
@@ -36,6 +38,7 @@ import { AppController } from './app.controller.js';
         if (connectionString) {
           return {
             type: 'postgres',
+            driver: pg,
             url: connectionString,
             ssl: { rejectUnauthorized: false },
             autoLoadEntities: true,
@@ -45,6 +48,7 @@ import { AppController } from './app.controller.js';
 
         return {
           type: 'postgres',
+          driver: pg,
           host: config.get<string>('DB_HOST'),
           port: config.get<number>('DB_PORT'),
           username: config.get<string>('DB_USER'),

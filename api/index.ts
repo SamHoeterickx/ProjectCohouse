@@ -1,23 +1,13 @@
-import { NestFactory, Reflector } from '@nestjs/core';
-import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
+import '../src/shared/config/timezone.js';
+import { NestFactory } from '@nestjs/core';
 import serverless from 'serverless-http';
 import { AppModule } from '../src/modules/app/app.module.js';
-import { ResponseInterceptor } from '../src/shared/interceptors/response.interceptor.js';
+import { configureApp } from '../src/shared/config/app.config.js';
 
 let cachedHandler: ReturnType<typeof serverless>;
 
 async function bootstrap() {
-    const app = await NestFactory.create(AppModule);
-
-    app.useGlobalPipes(new ValidationPipe({
-        whitelist: true,
-        forbidNonWhitelisted: true,
-    }));
-
-    app.useGlobalInterceptors(
-        new ClassSerializerInterceptor(app.get(Reflector)),
-        new ResponseInterceptor(),
-    );
+    const app = configureApp(await NestFactory.create(AppModule));
 
     await app.init();
 

@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 // CONNECTION
@@ -8,10 +8,26 @@ import { GeminiConnection } from '../../connections/gemini.connection.js';
 // CONST
 import { GEMINI_OUTPUT_SCHEMA } from '../../const/gemini.const.js';
 
+/** Statuses that mean "busy, try again": rate limited, overloaded or timed out. */
+const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
+/** Waits between attempts on the same model. Kept short: the user is waiting on this request. */
+const RETRY_DELAYS_MS = [1500, 4000];
+
+function statusOf(error: unknown): number | undefined {
+    const status = (error as { status?: unknown; statusCode?: unknown })?.status
+        ?? (error as { statusCode?: unknown })?.statusCode;
+    return typeof status === 'number' ? status : undefined;
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 @Injectable()
 export class GeminiService {
+    private readonly logger = new Logger(GeminiService.name);
     private readonly GEMINI: GoogleGenAI;
     private readonly MODEL: string;
+    /** Optional second model, used when the main model stays overloaded (GEMINI_FALLBACK_MODEL). */
+    private readonly FALLBACK_MODEL: string | undefined;
 
     constructor(
         private readonly geminiConnection: GeminiConnection,
@@ -30,11 +46,41 @@ export class GeminiService {
 
         this.GEMINI = geminiClient;
         this.MODEL = geminiModel;
+        this.FALLBACK_MODEL = this.configService.get<string>('GEMINI_FALLBACK_MODEL') || undefined;
     }
 
+    /**
+     * Retries the main model with a short backoff when Gemini is busy, then tries the fallback
+     * model once. If everything is busy, throws a 503 the frontend can show as "try again later".
+     */
     public async prompt(ocrData: string, prompt: string) {
+        const attempts = [
+            ...[0, ...RETRY_DELAYS_MS].map((delay) => ({ model: this.MODEL, delay })),
+            ...(this.FALLBACK_MODEL ? [{ model: this.FALLBACK_MODEL, delay: 0 }] : []),
+        ];
+
+        let lastError: unknown;
+        for (const { model, delay } of attempts) {
+            if (delay) await sleep(delay);
+            try {
+                return await this.promptModel(model, ocrData, prompt);
+            } catch (error) {
+                const status = statusOf(error);
+                if (status === undefined || !RETRYABLE_STATUSES.has(status)) {
+                    throw error;
+                }
+                lastError = error;
+                this.logger.warn(`Gemini ${model} returned ${status}, retrying`);
+            }
+        }
+
+        this.logger.error('Gemini stayed unavailable after all retries', lastError instanceof Error ? lastError.message : lastError);
+        throw new ServiceUnavailableException('Receipt reading is temporarily unavailable. Try again in a minute or enter the expense manually.');
+    }
+
+    private async promptModel(model: string, ocrData: string, prompt: string) {
         const interaction = await this.GEMINI.interactions.create({
-            model: this.MODEL,
+            model,
             input: `
                 ## PROMPT
                 ${prompt}

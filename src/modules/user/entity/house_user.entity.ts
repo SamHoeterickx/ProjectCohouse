@@ -12,13 +12,15 @@ export class HouseUser {
 
     @ManyToOne(
         () => User,
-        (user) => user.houseUser
+        (user) => user.houseUser,
+        { onDelete: 'CASCADE' }
     )
     user: Relation<User>;
 
     @ManyToOne(
         () => House,
-        (house) => house.memberships
+        (house) => house.memberships,
+        { onDelete: 'CASCADE' }
     )
     house: Relation<House>;
 

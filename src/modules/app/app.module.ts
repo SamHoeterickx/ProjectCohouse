@@ -8,6 +8,11 @@ import { FileUploadModule } from '../file-upload/file-upload.module.js';
 import { HouseModule } from '../house/house.module.js';
 import { ReceiptModule } from '../receipt/receipt.module.js';
 import { UserModule } from '../user/user.module.js';
+import { ExpenseModule } from '../expense/expense.module.js';
+import { RecurringExpenseModule } from '../recurring-expense/recurring-expense.module.js';
+import { SettlementModule } from '../settlement/settlement.module.js';
+import { BalanceModule } from '../balance/balance.module.js';
+import { ActivityModule } from '../activity/activity.module.js';
 
 // ___SERVICE___
 import { AppService } from './app.service.js';
@@ -53,7 +58,12 @@ import { AppController } from './app.controller.js';
     AuthModule,
     HouseModule,
     ReceiptModule,
-    FileUploadModule
+    FileUploadModule,
+    ExpenseModule,
+    RecurringExpenseModule,
+    SettlementModule,
+    BalanceModule,
+    ActivityModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { del, put } from '@vercel/blob';
 
 @Injectable()
@@ -8,11 +8,11 @@ export class FileUploadService {
 
     public async saveFile(file: Express.Multer.File) {
         if (!file) {
-            throw new Error('No file provided');
+            throw new BadRequestException('No file provided');
         }
 
         if (!file.buffer) {
-            throw new Error('Uploaded file has no buffer');
+            throw new BadRequestException('Uploaded file has no buffer');
         }
 
         const suffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -21,6 +21,7 @@ export class FileUploadService {
 
         const blob = await put(fileName, file.buffer, {
             access: 'public',
+            addRandomSuffix: true,
             contentType: file.mimetype,
         });
 

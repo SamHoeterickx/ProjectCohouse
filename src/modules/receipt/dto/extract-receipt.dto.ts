@@ -1,7 +1,7 @@
-import { IsNotEmpty, IsString } from "class-validator";
+import { IsNotEmpty, IsUrl } from "class-validator";
 
 export class ExtractReceiptDto {
-    @IsString()
+    @IsUrl({ protocols: ['https'], require_protocol: true })
     @IsNotEmpty()
     path: string;
 }

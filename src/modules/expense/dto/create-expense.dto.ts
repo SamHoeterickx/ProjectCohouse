@@ -68,6 +68,6 @@ export class CreateExpenseDto {
     items?: ExpenseItemDto[];
 
     @IsOptional()
-    @IsUrl()
+    @IsUrl({ protocols: ['http', 'https'], require_protocol: true, require_tld: false })
     receipt_url?: string;
 }

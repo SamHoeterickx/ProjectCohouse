@@ -3,11 +3,14 @@ import { createWorker } from 'tesseract.js';
 
 @Injectable()
 export class OcrService {
-    public async extract(imagePath: string): Promise<string>{
+    /** Accepts a file path or the raw image buffer. */
+    public async extract(image: string | Buffer): Promise<string>{
         const worker = await createWorker('nld');
-        const { data } = await worker.recognize(imagePath);
-        worker.terminate();
-        
-        return data.text;
+        try {
+            const { data } = await worker.recognize(image);
+            return data.text;
+        } finally {
+            await worker.terminate();
+        }
     }
 }

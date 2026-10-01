@@ -16,8 +16,6 @@ import { receiptDateToIso } from '../../shared/utils/date/date.util.js';
 
 const UNKNOWN_STORE = 'Onbekende Winkel';
 
-/** Only receipts stored through our own upload endpoint may be fetched (prevents SSRF). */
-const ALLOWED_RECEIPT_HOST_SUFFIX = '.blob.vercel-storage.com';
 
 @Injectable()
 export class ReceiptService {
@@ -33,12 +31,24 @@ export class ReceiptService {
      * Nothing is stored: the user corrects the draft, assigns items and posts it as an expense.
      */
     public async extractGroceriesFromReceipt(path: string) {
-        const { protocol, hostname } = new URL(path);
-        if (protocol !== 'https:' || !hostname.endsWith(ALLOWED_RECEIPT_HOST_SUFFIX)) {
+        // Only files stored by our own upload endpoint are read, never arbitrary URLs (prevents SSRF).
+        const filePath = this.fileUploadService.resolveStoredFile(path);
+        if (!filePath) {
             throw new BadRequestException('Receipt must be uploaded through the file upload endpoint first');
         }
 
-        const ocrText = await this.ocrService.extract(path);
+        return this.extractFromImage(filePath, path);
+    }
+
+    public async scan(file: Express.Multer.File) {
+        const { data } = await this.fileUploadService.saveFile(file);
+
+        // OCR straight from memory instead of reading the file we just wrote.
+        return this.extractFromImage(file.buffer, data.path);
+    }
+
+    private async extractFromImage(image: string | Buffer, receiptUrl: string) {
+        const ocrText = await this.ocrService.extract(image);
         const result = await this.geminiService.prompt(ocrText, PROMPT);
 
         if (!result || typeof result !== 'object' || !Array.isArray((result as IReceiptResponse).items)) {
@@ -58,7 +68,7 @@ export class ReceiptService {
         return {
             message: 'Receipt extracted successfully',
             data: {
-                receipt_url: path,
+                receipt_url: receiptUrl,
                 store: receipt.store_name && receipt.store_name !== UNKNOWN_STORE ? receipt.store_name : null,
                 date: receiptDateToIso(receipt.date),
                 amount_in_cents: receipt.total_price,
@@ -68,11 +78,5 @@ export class ReceiptService {
                 totals_match: itemsTotal === receipt.total_price,
             }
         }
-    }
-
-    public async scan(file: Express.Multer.File) {
-        const { data } = await this.fileUploadService.saveFile(file);
-
-        return this.extractGroceriesFromReceipt(data.path);
     }
 }

@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { BadGatewayException, BadRequestException, Injectable } from '@nestjs/common';
 
 // ___SERVICE___
@@ -15,6 +16,9 @@ import { IReceiptResponse } from './interfaces/receipt-response.interface.js';
 import { receiptDateToIso } from '../../shared/utils/date/date.util.js';
 
 const UNKNOWN_STORE = 'Onbekende Winkel';
+
+/** PDFs start with "%PDF"; checked on the bytes so a wrong mimetype can't route a PDF into OCR. */
+const isPdf = (buffer: Buffer) => buffer.subarray(0, 4).toString('latin1') === '%PDF';
 
 
 @Injectable()
@@ -37,19 +41,21 @@ export class ReceiptService {
             throw new BadRequestException('Receipt must be uploaded through the file upload endpoint first');
         }
 
-        return this.extractFromImage(filePath, path);
+        return this.extractFromFile(await readFile(filePath), path);
     }
 
     public async scan(file: Express.Multer.File) {
         const { data } = await this.fileUploadService.saveFile(file);
 
-        // OCR straight from memory instead of reading the file we just wrote.
-        return this.extractFromImage(file.buffer, data.path);
+        // Read straight from memory instead of reading the file we just wrote.
+        return this.extractFromFile(file.buffer, data.path);
     }
 
-    private async extractFromImage(image: string | Buffer, receiptUrl: string) {
-        const ocrText = await this.ocrService.extract(image);
-        const result = await this.geminiService.prompt(ocrText, PROMPT);
+    private async extractFromFile(file: Buffer, receiptUrl: string) {
+        // Tesseract only reads images; Gemini reads PDFs itself.
+        const result = isPdf(file)
+            ? await this.geminiService.promptWithPdf(file, PROMPT)
+            : await this.geminiService.prompt(await this.ocrService.extract(file), PROMPT);
 
         if (!result || typeof result !== 'object' || !Array.isArray((result as IReceiptResponse).items)) {
             throw new BadGatewayException('Could not read the receipt, please try again or enter it manually');

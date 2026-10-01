@@ -10,4 +10,9 @@ async function bootstrap() {
 
   await app.listen(config.get('PORT') ?? 3000);
 }
-await bootstrap();
+// No top-level await: Hostinger starts the app through LiteSpeed/Passenger, which loads the
+// entry file with require(). Node can require() an ES module, but not one with top-level await.
+bootstrap().catch((error) => {
+  console.error('Failed to start the application', error);
+  process.exit(1);
+});

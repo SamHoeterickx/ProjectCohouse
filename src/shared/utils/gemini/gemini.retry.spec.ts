@@ -30,7 +30,21 @@ describe('GeminiService.prompt retries', () => {
         await vi.runAllTimersAsync();
 
         await assertion;
-        expect(create.mock.calls.map(([args]) => args.model)).toEqual(['main', 'main', 'main', 'lite']);
+        expect(create.mock.calls.map(([args]) => args.model)).toEqual(['main', 'main', 'lite']);
+    });
+
+    it('passes a timeout and disables the SDK retries', async () => {
+        const create = vi.fn().mockResolvedValue(ok);
+        await makeService(create).prompt('ocr', 'prompt');
+        expect(create.mock.calls[0][1]).toEqual({ retries: { strategy: 'none' }, timeout_ms: 20_000 });
+    });
+
+    it('retries a timed out attempt', async () => {
+        const timeout = Object.assign(new Error('timed out'), { name: 'RequestTimeoutError' });
+        const create = vi.fn().mockRejectedValueOnce(timeout).mockResolvedValueOnce(ok);
+        const result = makeService(create).prompt('ocr', 'prompt');
+        await vi.runAllTimersAsync();
+        await expect(result).resolves.toEqual({ items: [] });
     });
 
     it('does not retry other errors', async () => {

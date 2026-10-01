@@ -11,7 +11,17 @@ import { GEMINI_OUTPUT_SCHEMA } from '../../const/gemini.const.js';
 /** Statuses that mean "busy, try again": rate limited, overloaded or timed out. */
 const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
 /** Waits between attempts on the same model. Kept short: the user is waiting on this request. */
-const RETRY_DELAYS_MS = [1500, 4000];
+const RETRY_DELAYS_MS = [1500];
+/**
+ * Per-attempt limit. The SDK's own retries are disabled: on a 429 it waits for retry-after
+ * and kept a request open for over 5 minutes. Worst case is now ~1 minute in total.
+ */
+const ATTEMPT_TIMEOUT_MS = 20_000;
+
+function isTimeout(error: unknown) {
+    const name = (error as { name?: unknown })?.name;
+    return typeof name === 'string' && /timeout|abort/i.test(name);
+}
 
 function statusOf(error: unknown): number | undefined {
     const status = (error as { status?: unknown; statusCode?: unknown })?.status
@@ -54,6 +64,24 @@ export class GeminiService {
      * model once. If everything is busy, throws a 503 the frontend can show as "try again later".
      */
     public async prompt(ocrData: string, prompt: string) {
+        return this.withRetries((model) => this.promptModel(model, `
+                ## PROMPT
+                ${prompt}
+
+                ## DATA FROM OCR
+                ${ocrData}
+            `));
+    }
+
+    /** Sends a PDF straight to Gemini, which reads it natively, so no OCR is needed. */
+    public async promptWithPdf(pdf: Buffer, prompt: string) {
+        return this.withRetries((model) => this.promptModel(model, [
+            { type: 'text', text: prompt },
+            { type: 'document', data: pdf.toString('base64'), mime_type: 'application/pdf' },
+        ]));
+    }
+
+    private async withRetries(run: (model: string) => Promise<unknown>) {
         const attempts = [
             ...[0, ...RETRY_DELAYS_MS].map((delay) => ({ model: this.MODEL, delay })),
             ...(this.FALLBACK_MODEL ? [{ model: this.FALLBACK_MODEL, delay: 0 }] : []),
@@ -63,14 +91,15 @@ export class GeminiService {
         for (const { model, delay } of attempts) {
             if (delay) await sleep(delay);
             try {
-                return await this.promptModel(model, ocrData, prompt);
+                return await run(model);
             } catch (error) {
                 const status = statusOf(error);
-                if (status === undefined || !RETRYABLE_STATUSES.has(status)) {
+                const retryable = isTimeout(error) || (status !== undefined && RETRYABLE_STATUSES.has(status));
+                if (!retryable) {
                     throw error;
                 }
                 lastError = error;
-                this.logger.warn(`Gemini ${model} returned ${status}, retrying`);
+                this.logger.warn(`Gemini ${model} ${isTimeout(error) ? 'timed out' : `returned ${status}`}, retrying`);
             }
         }
 
@@ -78,22 +107,16 @@ export class GeminiService {
         throw new ServiceUnavailableException('Receipt reading is temporarily unavailable. Try again in a minute or enter the expense manually.');
     }
 
-    private async promptModel(model: string, ocrData: string, prompt: string) {
+    private async promptModel(model: string, input: Parameters<GoogleGenAI['interactions']['create']>[0]['input']) {
         const interaction = await this.GEMINI.interactions.create({
             model,
-            input: `
-                ## PROMPT
-                ${prompt}
-
-                ## DATA FROM OCR
-                ${ocrData}
-            `,
+            input,
             response_format: {
                 type: 'text',
                 mime_type: 'application/json',
                 schema: GEMINI_OUTPUT_SCHEMA
             }
-        });
+        }, { retries: { strategy: 'none' }, timeout_ms: ATTEMPT_TIMEOUT_MS });
 
         if(interaction.status !== 'completed'){
             throw new Error('Failed to generate response');

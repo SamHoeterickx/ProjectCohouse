@@ -13,6 +13,7 @@ import { RecurringExpenseModule } from '../recurring-expense/recurring-expense.m
 import { SettlementModule } from '../settlement/settlement.module.js';
 import { BalanceModule } from '../balance/balance.module.js';
 import { ActivityModule } from '../activity/activity.module.js';
+import { HealthModule } from '../health/health.module.js';
 
 // ___SERVICE___
 import { AppService } from './app.service.js';
@@ -64,6 +65,7 @@ import { AppController } from './app.controller.js';
     SettlementModule,
     BalanceModule,
     ActivityModule,
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,13 +1,13 @@
 import { readFile } from 'node:fs/promises';
-import { BadGatewayException, BadRequestException, Injectable } from '@nestjs/common';
+import { BadGatewayException, BadRequestException, Injectable, Logger } from '@nestjs/common';
 
 // ___SERVICE___
+import { OllamaService } from '../../shared/utils/ollama/ollama.service.js';
 import { GeminiService } from '../../shared/utils/gemini/gemini.service.js';
 import { FileUploadService } from '../file-upload/file-upload.service.js';
-import { OcrService } from '../../shared/utils/ocr/ocr.service.js';
 
 // ___CONST___
-import { PROMPT } from '../../shared/const/gemini.const.js';
+import { PROMPT } from '../../shared/const/receipt.const.js';
 
 // ___INTERFACE___
 import { IReceiptResponse } from './interfaces/receipt-response.interface.js';
@@ -17,17 +17,31 @@ import { receiptDateToIso } from '../../shared/utils/date/date.util.js';
 
 const UNKNOWN_STORE = 'Onbekende Winkel';
 
-/** PDFs start with "%PDF"; checked on the bytes so a wrong mimetype can't route a PDF into OCR. */
-const isPdf = (buffer: Buffer) => buffer.subarray(0, 4).toString('latin1') === '%PDF';
-
+/** Detected from the bytes, not the upload's mimetype, so a wrong mimetype can't send a file to the model mislabeled. */
+function sniffMimeType(buffer: Buffer): string | null {
+    if (buffer.subarray(0, 4).toString('latin1') === '%PDF') return 'application/pdf';
+    if (buffer[0] === 0xff && buffer[1] === 0xd8) return 'image/jpeg';
+    if (buffer.subarray(1, 4).toString('latin1') === 'PNG') return 'image/png';
+    if (buffer.subarray(0, 4).toString('latin1') === 'RIFF' && buffer.subarray(8, 12).toString('latin1') === 'WEBP') return 'image/webp';
+    if (buffer.subarray(4, 8).toString('latin1') === 'ftyp') {
+        const brand = buffer.subarray(8, 12).toString('latin1');
+        if (brand.startsWith('hei') || brand.startsWith('mif')) return brand.startsWith('hei') ? 'image/heic' : 'image/heif';
+    }
+    return null;
+}
 
 @Injectable()
 export class ReceiptService {
+    private readonly logger = new Logger(ReceiptService.name);
+
+    private elapsed(since: number) {
+        return Math.round(performance.now() - since);
+    }
 
     constructor(
+        private readonly ollamaService: OllamaService,
         private readonly geminiService: GeminiService,
         private readonly fileUploadService: FileUploadService,
-        private readonly ocrService: OcrService,
     ) {}
 
     /**
@@ -51,11 +65,32 @@ export class ReceiptService {
         return this.extractFromFile(file.buffer, data.path);
     }
 
+    /** Reads the receipt with the local Ollama model; Gemini takes over when Ollama is unconfigured, unsupported or fails. */
+    private async prompt(file: Buffer, mimeType: string) {
+        if (this.ollamaService.canHandle(mimeType)) {
+            try {
+                const result = await this.ollamaService.promptWithFile(file, mimeType, PROMPT);
+                if (result && typeof result === 'object' && Array.isArray((result as IReceiptResponse).items)) {
+                    return result;
+                }
+                this.logger.warn('Ollama returned an unusable receipt, falling back to Gemini');
+            } catch (error) {
+                this.logger.warn(`Ollama failed (${error instanceof Error ? error.message : error}), falling back to Gemini`);
+            }
+        }
+
+        return this.geminiService.promptWithFile(file, mimeType, PROMPT);
+    }
+
     private async extractFromFile(file: Buffer, receiptUrl: string) {
-        // Tesseract only reads images; Gemini reads PDFs itself.
-        const result = isPdf(file)
-            ? await this.geminiService.promptWithPdf(file, PROMPT)
-            : await this.geminiService.prompt(await this.ocrService.extract(file), PROMPT);
+        const mimeType = sniffMimeType(file);
+        if (!mimeType) {
+            throw new BadRequestException('Receipt must be a JPEG, PNG, WebP, HEIC or PDF file');
+        }
+
+        const startedAt = performance.now();
+        const result = await this.prompt(file, mimeType);
+        this.logger.log(`Receipt scan timing: ${this.elapsed(startedAt)}ms`);
 
         if (!result || typeof result !== 'object' || !Array.isArray((result as IReceiptResponse).items)) {
             throw new BadGatewayException('Could not read the receipt, please try again or enter it manually');

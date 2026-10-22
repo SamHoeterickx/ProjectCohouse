@@ -10,13 +10,13 @@ function makeService(create: ReturnType<typeof vi.fn>, fallback?: string) {
     return new GeminiService(connection as never, config as never);
 }
 
-describe('GeminiService.prompt retries', () => {
+describe('GeminiService.promptWithFile retries', () => {
     beforeEach(() => vi.useFakeTimers());
     afterEach(() => vi.useRealTimers());
 
     it('retries the main model when Gemini is busy', async () => {
         const create = vi.fn().mockRejectedValueOnce(busy).mockResolvedValueOnce(ok);
-        const result = makeService(create).prompt('ocr', 'prompt');
+        const result = makeService(create).promptWithFile(Buffer.from('img'), 'image/jpeg', 'prompt');
         await vi.runAllTimersAsync();
 
         await expect(result).resolves.toEqual({ items: [] });
@@ -25,7 +25,7 @@ describe('GeminiService.prompt retries', () => {
 
     it('falls back to the second model and then gives a clean 503', async () => {
         const create = vi.fn().mockRejectedValue(busy);
-        const result = makeService(create, 'lite').prompt('ocr', 'prompt');
+        const result = makeService(create, 'lite').promptWithFile(Buffer.from('img'), 'image/jpeg', 'prompt');
         const assertion = expect(result).rejects.toBeInstanceOf(ServiceUnavailableException);
         await vi.runAllTimersAsync();
 
@@ -35,21 +35,21 @@ describe('GeminiService.prompt retries', () => {
 
     it('passes a timeout and disables the SDK retries', async () => {
         const create = vi.fn().mockResolvedValue(ok);
-        await makeService(create).prompt('ocr', 'prompt');
+        await makeService(create).promptWithFile(Buffer.from('img'), 'image/jpeg', 'prompt');
         expect(create.mock.calls[0][1]).toEqual({ retries: { strategy: 'none' }, timeout_ms: 20_000 });
     });
 
     it('retries a timed out attempt', async () => {
         const timeout = Object.assign(new Error('timed out'), { name: 'RequestTimeoutError' });
         const create = vi.fn().mockRejectedValueOnce(timeout).mockResolvedValueOnce(ok);
-        const result = makeService(create).prompt('ocr', 'prompt');
+        const result = makeService(create).promptWithFile(Buffer.from('img'), 'image/jpeg', 'prompt');
         await vi.runAllTimersAsync();
         await expect(result).resolves.toEqual({ items: [] });
     });
 
     it('does not retry other errors', async () => {
         const create = vi.fn().mockRejectedValue(Object.assign(new Error('bad request'), { status: 400 }));
-        await expect(makeService(create).prompt('ocr', 'prompt')).rejects.toThrow('bad request');
+        await expect(makeService(create).promptWithFile(Buffer.from('img'), 'image/jpeg', 'prompt')).rejects.toThrow('bad request');
         expect(create).toHaveBeenCalledTimes(1);
     });
 });

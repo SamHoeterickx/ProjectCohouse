@@ -1,4 +1,4 @@
-export const GEMINI_OUTPUT_SCHEMA = {
+export const RECEIPT_OUTPUT_SCHEMA = {
     type: 'object',
     properties: {
         store_name: {

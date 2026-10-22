@@ -53,10 +53,10 @@ pids
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
-# tesseract language data (downloaded at runtime, not committed)
-*.traineddata
 
 # local test fixtures
 src/modules/receipt/test-receipt*.png
 src/modules/receipt/test-receipt*.jpg
 *.tsbuildinfo
+
+docs/MOCK_LOGINS.MD

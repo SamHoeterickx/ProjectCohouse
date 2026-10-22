@@ -6,7 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import { GeminiConnection } from '../../connections/gemini.connection.js';
 
 // CONST
-import { GEMINI_OUTPUT_SCHEMA } from '../../const/gemini.const.js';
+import { RECEIPT_OUTPUT_SCHEMA } from '../../const/receipt.const.js';
 
 /** Statuses that mean "busy, try again": rate limited, overloaded or timed out. */
 const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
@@ -60,25 +60,15 @@ export class GeminiService {
     }
 
     /**
+     * Sends a receipt (photo or PDF) straight to Gemini, which reads it natively, so no OCR is needed.
      * Retries the main model with a short backoff when Gemini is busy, then tries the fallback
      * model once. If everything is busy, throws a 503 the frontend can show as "try again later".
      */
-    public async prompt(ocrData: string, prompt: string) {
-        return this.withRetries((model) => this.promptModel(model, `
-                ## PROMPT
-                ${prompt}
-
-                ## DATA FROM OCR
-                ${ocrData}
-            `));
-    }
-
-    /** Sends a PDF straight to Gemini, which reads it natively, so no OCR is needed. */
-    public async promptWithPdf(pdf: Buffer, prompt: string) {
+    public async promptWithFile(file: Buffer, mimeType: string, prompt: string) {
         return this.withRetries((model) => this.promptModel(model, [
             { type: 'text', text: prompt },
-            { type: 'document', data: pdf.toString('base64'), mime_type: 'application/pdf' },
-        ]));
+            { type: mimeType === 'application/pdf' ? 'document' : 'image', data: file.toString('base64'), mime_type: mimeType },
+        ] as never));
     }
 
     private async withRetries(run: (model: string) => Promise<unknown>) {
@@ -114,7 +104,7 @@ export class GeminiService {
             response_format: {
                 type: 'text',
                 mime_type: 'application/json',
-                schema: GEMINI_OUTPUT_SCHEMA
+                schema: RECEIPT_OUTPUT_SCHEMA
             }
         }, { retries: { strategy: 'none' }, timeout_ms: ATTEMPT_TIMEOUT_MS });
 
@@ -147,7 +137,7 @@ export class GeminiService {
                 response_format: {
                     type: 'text',
                     mime_type: 'application/json',
-                    schema: GEMINI_OUTPUT_SCHEMA
+                    schema: RECEIPT_OUTPUT_SCHEMA
                 }
             })
 

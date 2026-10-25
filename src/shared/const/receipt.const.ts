@@ -60,6 +60,9 @@ export const PROMPT = `
     1. PRIJZEN IN CENTEN (INTEGERS):
     De backend accepteert enkel integers. Alle bedragen (total_price, price, price_per_unit) MOETEN worden omgezet naar CENTEN.
     - Voorbeeld: €22,87 wordt 2287.
+    - EENHEIDSPRIJZEN MET 3 DECIMALEN: sommige tickets tonen een eenheidsprijs met drie decimalen (bijv. "0,816" of "0,658"). Dat is een bedrag in EURO met een derde decimaal, GEEN bedrag in cent. Lees "0,816" NOOIT als 816 cent.
+      Rond de eenheidsprijs af op 2 decimalen (gewone afronding) en zet die om naar centen: 0,816 wordt 0,82 wordt 82. 0,658 wordt 0,66 wordt 66. 0,849 wordt 0,85 wordt 85.
+    - De kolom "Bedrag" is altijd de waarheid voor 'price' (voor korting en leeggoed). Neem die waarde letterlijk over, bijv. "0,82" wordt 82 en "3,40" wordt 340, ook als amount * price_per_unit er een cent van afwijkt.
 
     2. AANTALLEN ZIJN ALTIJD GEHELE GETALLEN:
     Het veld 'amount' mag geen kommagetal zijn. 

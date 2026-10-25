@@ -1,7 +1,8 @@
 import { readFile } from 'node:fs/promises';
-import { BadGatewayException, BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadGatewayException, BadRequestException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 
 // ___SERVICE___
+import { OcrGatewayService } from '../../shared/utils/ocr-gateway/ocr-gateway.service.js';
 import { OllamaService } from '../../shared/utils/ollama/ollama.service.js';
 import { GeminiService } from '../../shared/utils/gemini/gemini.service.js';
 import { FileUploadService } from '../file-upload/file-upload.service.js';
@@ -39,6 +40,7 @@ export class ReceiptService {
     }
 
     constructor(
+        private readonly ocrGatewayService: OcrGatewayService,
         private readonly ollamaService: OllamaService,
         private readonly geminiService: GeminiService,
         private readonly fileUploadService: FileUploadService,
@@ -65,12 +67,36 @@ export class ReceiptService {
         return this.extractFromFile(file.buffer, data.path);
     }
 
-    /** Reads the receipt with the local Ollama model; Gemini takes over when Ollama is unconfigured, unsupported or fails. */
+    /** Reads the receipt with the OCR gateway first; when it fails, OCR_FALLBACK_GEMINI=true lets the older readers take over. */
     private async prompt(file: Buffer, mimeType: string) {
+        if (this.ocrGatewayService.canHandle(mimeType)) {
+            try {
+                const result = await this.ocrGatewayService.promptWithFile(file, mimeType);
+                if (result && typeof result === 'object' && Array.isArray((result as IReceiptResponse).items)) {
+                    this.logger.log('Receipt read by OCR gateway');
+                    return result;
+                }
+                throw new Error('OCR gateway returned an unusable receipt');
+            } catch (error) {
+                const reason = error instanceof Error ? error.message : error;
+                if (!this.ocrGatewayService.fallbackToGemini) {
+                    this.logger.error(`OCR gateway failed (${reason})`);
+                    throw new ServiceUnavailableException('Receipt reading is temporarily unavailable. Try again in a minute or enter the expense manually.');
+                }
+                this.logger.warn(`OCR gateway failed (${reason}), falling back to Gemini`);
+            }
+        }
+
+        return this.promptLegacy(file, mimeType);
+    }
+
+    /** Reads the receipt with the local Ollama model; Gemini takes over when Ollama is unconfigured, unsupported or fails. */
+    private async promptLegacy(file: Buffer, mimeType: string) {
         if (this.ollamaService.canHandle(mimeType)) {
             try {
                 const result = await this.ollamaService.promptWithFile(file, mimeType, PROMPT);
                 if (result && typeof result === 'object' && Array.isArray((result as IReceiptResponse).items)) {
+                    this.logger.log('Receipt read by Ollama');
                     return result;
                 }
                 this.logger.warn('Ollama returned an unusable receipt, falling back to Gemini');
@@ -79,6 +105,7 @@ export class ReceiptService {
             }
         }
 
+        this.logger.log('Reading receipt with Gemini');
         return this.geminiService.promptWithFile(file, mimeType, PROMPT);
     }
 

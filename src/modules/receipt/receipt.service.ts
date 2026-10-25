@@ -73,6 +73,7 @@ export class ReceiptService {
             try {
                 const result = await this.ocrGatewayService.promptWithFile(file, mimeType);
                 if (result && typeof result === 'object' && Array.isArray((result as IReceiptResponse).items)) {
+                    this.logger.log('Receipt read by OCR gateway');
                     return result;
                 }
                 throw new Error('OCR gateway returned an unusable receipt');
@@ -95,6 +96,7 @@ export class ReceiptService {
             try {
                 const result = await this.ollamaService.promptWithFile(file, mimeType, PROMPT);
                 if (result && typeof result === 'object' && Array.isArray((result as IReceiptResponse).items)) {
+                    this.logger.log('Receipt read by Ollama');
                     return result;
                 }
                 this.logger.warn('Ollama returned an unusable receipt, falling back to Gemini');
@@ -103,6 +105,7 @@ export class ReceiptService {
             }
         }
 
+        this.logger.log('Reading receipt with Gemini');
         return this.geminiService.promptWithFile(file, mimeType, PROMPT);
     }
 
